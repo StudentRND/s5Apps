@@ -35,7 +35,7 @@ class OAuth
 
         if (isset($state) && isset($expectedState)) {
             if ($state != $expectedState) {
-                throw new \Exception('Invalid state (expected '.$expectedState.', actual '.$state.').');
+                throw new \s5\Exceptions\InvalidState('Expected '.$expectedState.', actual '.$state.'.');
             }
         }
 

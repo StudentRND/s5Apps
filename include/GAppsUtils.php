@@ -1,82 +1,90 @@
 <?php
 
+
 class GAppsUtils
 {
     public static function ProcessPasswordUpdate($username, $password)
     {
-        $gapps_user = App::gapps()->retrieveUser($username);
-        if ($gapps_user !== null) {
-            $gapps_user->login->password = $password;
-            $gapps_user->save();
-        }
+        $id = $username.'@'.App::$config->gapps->domain;
+        $gappsUser = App::gapps()->users->get($id);
+        $gappsUser->setPassword($password);
+        App::gapps()->users->update($id, $gappsUser);
     }
 
     public static function SuspendUser($username)
     {
-        $gappsUser = App::gapps()->retrieveUser($username);
-        if ($gappsUser !== null) {
-            App::gapps()->suspendUser($username);
-        }
+        $id = $username.'@'.App::$config->gapps->domain;
+        $gappsUser = App::gapps()->users->get($id);
+        $gappsUser->setSuspended(true);
+        App::gapps()->users->update($id, $gappsUser);
+    }
+
+    public function UnsuspendUser($username)
+    {
+        $id = $username.'@'.App::$config->gapps->domain;
+        $gappsUser = App::gapps()->users->get($id);
+        $gappsUser->setSuspended(false);
+        App::gapps()->users->update($id, $gappsUser);
     }
 
     public static function RenameUser($old, $new)
     {
-        $gappsUser = App::gapps()->retrieveUser($old);
-        if ($gappsUser !== null) {
-            $gappsUser->login->userName = $new;
-            $gappsUser->save();
-        }
+        $id = $old.'@'.App::$config->gapps->domain;
+        $gappsUser = App::gapps()->users->get($id);
+        $gappsUser->setPrimaryEmail($new.'@'.App::$config->gapps->domain);
+        App::gapps()->users->update($id, $gappsUser);
     }
 
     public static function EnsureUserSynced($user)
     {
-        $gappsUser = App::gapps()->retrieveUser($user->username);
+        $id = $user->username.'@'.App::$config->gapps->domain;
+        try {
+            $gappsUser = App::gapps()->users->get($id);
+        } catch (\Google_Service_Exception $ex) {
+            $gappsUser = null;
+        }
+
         $shouldUserExist = App::UserAllowed($user, App::$config->gapps->allowed_groups);
 
+        $isNew = false;
         // User does not exist and should
         if ($gappsUser === null && $shouldUserExist) {
-            $gappsUser = App::gapps()->createUser(
-                       $user->username,
-                           $user->first_name,
-                           $user->last_name,
-                           hash('md5', time() . rand(0,10000) . $user->username . '!aoehrocehRhoer!')
-            );
-        }
-        else if ($gappsUser->login->suspended && $shouldUserExist) {
-            App::gapps()->restoreUser($user->username);
-        }
-        else if ($gappsUser !== null && !$shouldUserExist) {
-            App::gapps()->suspendUser($user->username);
+            $gappsUser = new \Google_Service_Directory_User;
+            $gappsUser->setPrimaryEmail($id);
+            $gappsUser->setPassword(md5(mt_rand(0,mt_getrandmax()).time().$user->username));
+            $isNew = true;
+        } else if ($gappsUser->suspended && $shouldUserExist) {
+            self::UnsuspendUser($user->username);
+        } else if ($gappsUser !== null && !$shouldUserExist && !$gappsUser->isAdmin) {
+            self::SuspendUser($user->username);
         }
 
         // Process profile info updates
         if ($shouldUserExist) {
             $hasUpdates = false;
 
-            if ($gappsUser->login->agreedToTerms == false) {
-                $gappsUser->login->agreedToTerms = true;
-                $hasUpdates = true;
-            }
-
-            // Check if the user account should be marked as an admin
-            if ($gappsUser->login->admin !== $user->is_admin) {
-                $gappsUser->login->admin = $user->is_admin;
+            if ($gappsUser->agreedToTerms == false) {
+                $gappsUser->agreedToTerms = true;
                 $hasUpdates = true;
             }
 
             // Check if the user's name has changed
-            if ($gappsUser->name->givenName !== $user->first_name) {
-                $gappsUser->name->givenName = $user->first_name;
-                $hasUpdates = true;
-            }
-            if ($gappsUser->name->familyName !== $user->last_name) {
-                $gappsUser->name->familyName = $user->last_name;
+            if ($gappsUser->getName() ||
+                $gappsUser->getName()->givenName !== $user->first_name ||
+                $gappsUser->getName()->familyName !== $user->last_name) {
+
+                $name = new \Google_Service_Directory_UserName;
+                $name->setGivenName($user->first_name);
+                $name->setFamilyName($user->last_name);
+                $gappsUser->setName($name);
+
                 $hasUpdates = true;
             }
 
-
-            if ($hasUpdates) {
-                $gappsUser->save();
+            if ($hasUpdates && !$isNew) {
+                App::gapps()->users->update($id, $gappsUser);
+            } elseif ($isNew) {
+                App::gapps()->users->insert($gappsUser);
             }
         }
     }

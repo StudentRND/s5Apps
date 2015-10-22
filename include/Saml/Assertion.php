@@ -39,15 +39,16 @@ class Assertion
     {
         $id = isset($this->ID) ? $this->ID : $this->generateUniqueId(40);
         $assertionID = isset($this->AssertionID) ? $this->AssertionID : $this->generateUniqueId(40);
+        $request = isset($this->Request) ? $this->Request : new \Saml\Request();
 
         $xml = new \DOMDocument('1.0', 'utf-8');
         $resp = $xml->createElementNS('urn:oasis:names:tc:SAML:2.0:protocol', 'samlp:Response');
 
         $resp->setAttribute('ID', $id);
-        $resp->setAttribute('InResponseTo', $this->Request->ID);
+        $resp->setAttribute('InResponseTo', $request->ID);
         $resp->setAttribute('Version', '2.0');
         $resp->setAttribute('IssueInstant', $this->getSamlTimestamp($this->IssuedAt));
-        $resp->setAttribute('Destination', $this->Request->AssertionConsumerServiceURL);
+        $resp->setAttribute('Destination', $request->AssertionConsumerServiceURL);
         $xml->appendChild($resp);
 
         $issuer = $xml->createElementNS('urn:oasis:names:tc:SAML:2.0:assertion', 'samlp:Issuer', $this->Issuer);
@@ -83,9 +84,9 @@ class Assertion
 
         // Put in the params from before
         $confirmationdata = $xml->createElement('saml:SubjectConfirmationData');
-        $confirmationdata->setAttribute('InResponseTo', $this->Request->ID);
+        $confirmationdata->setAttribute('InResponseTo', $request->ID);
         $confirmationdata->setAttribute('NotOnOrAfter', $this->getSamlTimestamp($this->AssertionExpiresAt));
-        $confirmationdata->setAttribute('Recipient', $this->Request->AssertionConsumerServiceURL);
+        $confirmationdata->setAttribute('Recipient', $request->AssertionConsumerServiceURL);
         $confirmation->appendChild($confirmationdata);
 
         $condition = $xml->createElement('saml:Conditions');
@@ -147,7 +148,7 @@ class Assertion
 
     public function Respond()
     {
-        $redirectURL = $this->Request->AssertionConsumerServiceURL;
+        $redirectURL = $request->AssertionConsumerServiceURL;
         $relay_state = isset($this->RelayState) ? $this->RelayState : $_REQUEST['RelayState'];
         $response = base64_encode(stripslashes($this->GetResponse(true)));
 

@@ -2,7 +2,7 @@
 $me = App::$s5->User->me();
 
 if (!App::UserAllowed($me, App::$config->gapps->allowed_groups)) {
-    echo "Unauthorized";
+    echo "Sorry, you don't have permission to access Google Apps.";
     exit;
 }
 

@@ -3,6 +3,7 @@
 require_once(implode(DIRECTORY_SEPARATOR, [dirname(__FILE__), 's5', 'API.php']));
 require_once(implode(DIRECTORY_SEPARATOR, [dirname(__FILE__), 'Saml', 'Request.php']));
 require_once(implode(DIRECTORY_SEPARATOR, [dirname(__FILE__), 'GAppsUtils.php']));
+include_once(__DIR__.'/google-api/src/Google/autoload.php');
 
 class App
 {
@@ -39,22 +40,32 @@ class App
     public static function gapps()
     {
         if (!isset(self::$_gapps)) {
-            set_include_path(dirname(__FILE__).PATH_SEPARATOR.get_include_path());
-            require_once(implode(DIRECTORY_SEPARATOR, [dirname(__FILE__), 'Zend', 'Loader.php']));
-            \Zend_Loader::loadClass('Zend_Gdata_ClientLogin');
-            \Zend_Loader::loadClass('Zend_Gdata_Gapps');
+            $client = new Google_Client();
+            $client->setApplicationName('s5apps');
+            $client->setScopes([\Google_Service_Directory::ADMIN_DIRECTORY_USER]);
+            $client->setAuthConfigFile(dirname(__DIR__).'/.client_secret.json');
+            $client->setAccessType('offline');
 
-            $loginToken = null;
-            $loginCaptcha = null;
-            $client = \Zend_Gdata_ClientLogin::getHttpClient(self::$config->gapps->username,
-                self::$config->gapps->password,
-                \Zend_Gdata_Gapps::AUTH_SERVICE_NAME,
-                null,
-                '',
-                $loginToken,
-                $loginCaptcha,
-                \Zend_Gdata_ClientLogin::CLIENTLOGIN_URI, 'HOSTED');
-            self::$_gapps = new \Zend_Gdata_Gapps($client, self::$config->gapps->domain);
+            $credentialsPath = dirname(__DIR__).'/.creds';
+            if (file_exists($credentialsPath)) {
+                $accessToken = file_get_contents($credentialsPath);
+            } else {
+                if (!$_GET['code']) {
+                    echo $client->createAuthUrl();
+                    exit;
+                } else {
+                    $accessToken = $client->authenticate($_GET['code']);
+                    file_put_contents($credentialsPath, $accessToken);
+                }
+            }
+            $client->setAccessToken($accessToken);
+
+            if ($client->isAccessTokenExpired()) {
+                $client->refreshToken($client->getRefreshToken());
+                file_put_contents($credentialsPath, $client->getAccessToken());
+            }
+
+            self::$_gapps = new Google_Service_Directory($client);
         }
 
         return self::$_gapps;

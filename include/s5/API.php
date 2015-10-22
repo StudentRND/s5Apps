@@ -83,13 +83,15 @@ class API
     private $hasTriedLogin = false;
     private function TryDoLogin()
     {
-        session_start();
+        if (!isset($_SESSION)) {
+            session_start();
+        }
 
-        if (!$this->hasTriedLogin && $_GET[self::UriDoLoginKey] === self::UriDoLoginValue) {
+        if (!$this->hasTriedLogin && array_key_exists(self::UriDoLoginKey, $_GET) && $_GET[self::UriDoLoginKey] === self::UriDoLoginValue) {
             $this->hasTriedLogin = true;
             $code = $_GET[self::UriCodeKey];
             $state = $_GET[self::UriStateKey];
-            $expectedState = array_key_exists(self::SessionStateStore, $_SESSION)
+            $expectedState = isset($_SESSION[self::SessionStateStore])
                                 ? $_SESSION[self::SessionStateStore] : null;
 
             try {
@@ -107,6 +109,8 @@ class API
                 // Remove old state
                 unset($_SESSION[self::SessionStateStore]);
             } catch (\s5\Exceptions\InvalidCode $ex) { }
+
+            unset($_SESSION[self::SessionStateStore]);
         }
     }
 
@@ -122,7 +126,24 @@ class API
         $sp = strtolower($s['SERVER_PROTOCOL']);
         $protocol = substr($sp, 0, strpos($sp, '/')) . (($ssl) ? 's' : '');
         $host = isset($s['HTTP_X_FORWARDED_HOST']) ? $s['HTTP_X_FORWARDED_HOST'] : isset($s['HTTP_HOST']) ? $s['HTTP_HOST'] : $s['SERVER_NAME'];
-        return $protocol . '://' . $host . $s['REQUEST_URI'];
+
+        $uri = $s['REQUEST_URI'];
+        $path = $uri;
+        if (false !== ($qs_index = strpos($uri, '?'))) {
+            $path = substr($uri, 0, $qs_index);
+        }
+
+        $getdata = $_GET;
+
+        foreach ([self::UriStateKey, self::UriCodeKey, self::UriDoLoginKey] as $key) {
+            if (isset($getdata[$key])) {
+                unset($getdata[$key]);
+            }
+        }
+
+        $qs = http_build_query($getdata);
+
+        return $protocol . '://' . $host . $path. (strlen($qs) > 0 ? '?'.$qs : '');
     }
 
     public function GET($endpoint, $params = [])
@@ -177,7 +198,7 @@ class API
         }
 
         $context  = stream_context_create($opts);
-        $result = file_get_contents($url, false, $context);
+        $result = @file_get_contents($url, false, $context);
 
         if ($result === false) {
             throw new \Exception("Unknown error fetching ".$url);
@@ -198,6 +219,10 @@ class API
     private function getHeader($headers, $key)
     {
         foreach ($headers as $header) {
+            if (false === strpos($header, ':')) {
+                continue;
+            }
+
             list($hkey, $hvalue) = explode(':', $header);
             $hkey = trim($hkey);
             $hvalue = trim($hvalue);

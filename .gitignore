@@ -1,3 +1,5 @@
 .local.json
 .server.crt
 .server.pem
+.creds
+.client_secret.json
