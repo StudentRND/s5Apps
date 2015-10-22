@@ -148,7 +148,7 @@ class Assertion
 
     public function Respond()
     {
-        $redirectURL = $request->AssertionConsumerServiceURL;
+        $redirectURL = $this->Request->AssertionConsumerServiceURL;
         $relay_state = isset($this->RelayState) ? $this->RelayState : $_REQUEST['RelayState'];
         $response = base64_encode(stripslashes($this->GetResponse(true)));
 
