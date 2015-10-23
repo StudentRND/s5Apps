@@ -6,13 +6,12 @@
     </style>
     <script>
         setTimeout(function(){
-            window.location = 'https://accounts.google.com/ServiceLogin';
+            window.location = 'https://s5.studentrnd.org/login/logout';
         }, 2000);
     </script>
 </head>
 <body>
     <p>Logging you out...</p>
-    <iframe src="https://s5.studentrnd.org/login/logout"></iframe>
     <iframe src="https://mail.google.com/mail/logout?hl=en"></iframe>
 </body>
 </html>
