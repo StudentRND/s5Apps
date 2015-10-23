@@ -30,6 +30,8 @@ class App
             require_once(implode(DIRECTORY_SEPARATOR, [dirname(__FILE__), 'Controllers', 'gapps.php']));
         } else if ($request === '/incoming') {
             require_once(implode(DIRECTORY_SEPARATOR, [dirname(__FILE__), 'Controllers', 'incoming.php']));
+        } else if ($request === '/logout') {
+            require_once(implode(DIRECTORY_SEPARATOR, [dirname(__FILE__), 'Controllers', 'logout.php']));
         } else {
             header("HTTP/1.1 404 File Not Found");
             echo $request." not found";
