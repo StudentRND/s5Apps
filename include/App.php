@@ -3,6 +3,7 @@
 require_once(implode(DIRECTORY_SEPARATOR, [dirname(__FILE__), 's5', 'API.php']));
 require_once(implode(DIRECTORY_SEPARATOR, [dirname(__FILE__), 'Saml', 'Request.php']));
 require_once(implode(DIRECTORY_SEPARATOR, [dirname(__FILE__), 'GAppsUtils.php']));
+require_once(implode(DIRECTORY_SEPARATOR, [dirname(__FILE__), 'SlackUtils.php']));
 include_once(__DIR__.'/google-api/src/Google/autoload.php');
 
 class App
@@ -28,6 +29,9 @@ class App
         if ($request === '/gapps') {
             self::$s5->RequireLogin();
             require_once(implode(DIRECTORY_SEPARATOR, [dirname(__FILE__), 'Controllers', 'gapps.php']));
+        } else if ($request === '/slack') {
+            self::$s5->RequireLogin();
+            require_once(implode(DIRECTORY_SEPARATOR, [dirname(__FILE__), 'Controllers', 'slack.php']));
         } else if ($request === '/incoming') {
             require_once(implode(DIRECTORY_SEPARATOR, [dirname(__FILE__), 'Controllers', 'incoming.php']));
         } else if ($request === '/logout') {
